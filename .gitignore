@@ -1,5 +1,5 @@
-logs
-dags
-confug
+/airflow/logs
+/airflow/plugins
+/airflow/confg
 .claude
 pg_data

@@ -1,4 +1,5 @@
 pandas
 kafka-python
+pyspark
 requests
 faker
