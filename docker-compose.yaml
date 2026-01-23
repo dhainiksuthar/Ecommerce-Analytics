@@ -93,22 +93,25 @@ services:
     volumes:
       - ./scripts:/app/scripts
     working_dir: /app/scripts
-    command: python event_produc.py
+    command: python -u event-produc.py
     depends_on:
       kafka:
         condition: service_healthy
     environment:
       - KAFKA_BROKER=kafka:9092
+      - PYTHONUNBUFFERED=1
 
   kafka:
     image: apache/kafka-native
     ports:
       - "9092:9092"
     healthcheck:
-      test: ["CMD-SHELL", "kafka-topics.sh --bootstrap-server localhost:9093 --list"]
+      test: ["CMD-SHELL", "nc -z localhost 9092 || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 20s
+    restart: always
     environment:
       # Configure listeners for both docker and host communication
       KAFKA_LISTENERS: CONTROLLER://localhost:9091,HOST://0.0.0.0:9092,DOCKER://0.0.0.0:9093
