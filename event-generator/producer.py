@@ -25,7 +25,7 @@ EVENT_TYPES = [
 ]
 
 producer = KafkaProducer(
-    bootstrap_servers=['kafka:9092'],
+    bootstrap_servers=['kafka:9093'],
     value_serializer=lambda v: json.dumps(v).encode('utf-8')
 )
 
@@ -65,7 +65,7 @@ def generate_clickstream(topic_name, num_events, rate):
         event = get_stream()
         producer.send(topic_name, event)
         cur_event = cur_event + 1
-        time.sleep(2)
+        time.sleep(rate)
     producer.flush()
     producer.close()
     return
@@ -77,7 +77,7 @@ if __name__ == "__main__":
             generate_clickstream(
                 topic_name = "ClickStream",
                 num_events=100,
-                rate=2
+                rate=10
             )
     except KeyboardInterrupt:
         print("Interrupted by user", file=sys.stderr)

@@ -4,3 +4,6 @@
 .claude
 pg_data
 /airflow/config/airflow.cfg
+/spark_streaming/jobs/__pycache__
+/spark_streaming/__pycache__
+/spark_streaming/utils/__pycache__
