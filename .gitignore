@@ -3,3 +3,4 @@
 /airflow/confg
 .claude
 pg_data
+/airflow/config/airflow.cfg
