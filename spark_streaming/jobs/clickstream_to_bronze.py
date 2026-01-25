@@ -2,6 +2,7 @@ from spark_streaming.utils.spark_session import spark
 from spark_streaming.schemas.clickstream_to_bronze import clickstream_brz_schema
 from pyspark.sql.functions import from_json, col
 import psycopg2
+from delta.tables import DeltaTable
 
 spark.sparkContext.setLogLevel("WARN")
 
@@ -46,43 +47,28 @@ def readStream(topic_name):
 
     return ClickBronzedf
 
-def _write_batch_(batch_df, batch_id, DB_CONFIG):
-    if batch_df.isEmpty():
-        logger.info(f"Batch {batch_id} is empty")
-        return
-    
-    row_count = batch_df.count()
-    logger.info(f"Batch {batch_id}: Writing {row_count} rows")
-    batch_df.write \
-        .format("jdbc") \
-        .option("url", DB_CONFIG['url']) \
-        .option("dbtable", DB_CONFIG['table']) \
-        .option("user", DB_CONFIG['user']) \
-        .option("password", DB_CONFIG['password']) \
-        .option("driver", "org.postgresql.Driver") \
-        .mode("append") \
-        .save()
+def optimize_table(path):
+    print(f"Optimizing {path}")
+    deltaTable = DeltaTable.forPath(spark, path)
+    deltaTable.optimize().executeCompaction()
+    deltaTable.vacuum()
 
-def writeStream(table_name, dfBronze, DB_CONFIG):
+def writeStream(path, dfBronze):
     return dfBronze.writeStream \
-            .foreachBatch(lambda df, id: _write_batch_(df, id, DB_CONFIG)) \
-            .outputMode("append") \
-            .start()
+        .format("delta") \
+        .outputMode("append") \
+        .option("checkpointLocation", "data/checkpoints/clickstream") \
+        .trigger(processingTime="10 seconds") \
+        .start(path)
 
 if __name__ == "__main__":
     topic_name = "ClickStream"
-    table_name = "clickstream"
+    path = "data/bronze/clickstream"
     database_name = "metabase_db"
-    DB_CONFIG = {
-        "url": f"jdbc:postgresql://postgres:5432/{database_name}",
-        "table": "kafka_streams",
-        "user": "metabase",
-        "password": "mysecretpassword"
-    }
-    cursor = postgresCon(DB_CONFIG)
-    createDatabase(database_name, cursor)
-    cursor.close()
-    # createTable(database_name, table_name, cursor)
+
+    optimize_table(path)
+    print("Reading Started")
     dfBronze = readStream(topic_name)
-    query = writeStream(table_name, dfBronze, DB_CONFIG)
+    print("Writing Started")
+    query = writeStream(path, dfBronze)
     query.awaitTermination()

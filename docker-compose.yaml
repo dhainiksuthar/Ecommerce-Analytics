@@ -146,6 +146,7 @@ services:
     user: root
     volumes:
       - ./spark_streaming:/opt/spark/work-dir/spark_streaming
+      - ./data:/opt/spark/work-dir/data
     working_dir: /opt/spark/work-dir
     environment:
       - SPARK_MODE=master
@@ -162,61 +163,63 @@ services:
       kafka:
         condition: service_healthy
     command: >
-      bash -c "pip install psycopg2-binary &&
+      bash -c "pip install psycopg2-binary delta-spark==3.0.0 &&
       /opt/spark/bin/spark-submit
-      --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0,org.postgresql:postgresql:42.7.1
+      --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0,org.postgresql:postgresql:42.7.1,io.delta:delta-spark_2.12:3.0.0,io.delta:delta-storage:3.0.0
+      --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension
+      --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog
       /opt/spark/work-dir/spark_streaming/jobs/clickstream_to_bronze.py"
 
-  metabase:
-    image: metabase/metabase:latest
-    container_name: metabase
-    hostname: metabase
-    volumes:
-      - /dev/urandom:/dev/random:ro
-    ports:
-      - 3000:3000
-    environment:
-      MB_DB_TYPE: postgres
-      MB_DB_DBNAME: metabaseappdb
-      MB_DB_PORT: 5432
-      MB_DB_USER: metabase
-      MB_DB_PASS: mysecretpassword
-      MB_DB_HOST: postgres
-    depends_on:
-      postgres-metabase:
-        condition: service_healthy
-    healthcheck:
-      test: curl --fail -I http://localhost:3000/api/health || exit 1
-      interval: 15s
-      timeout: 5s
-      retries: 5
-  postgres-metabase:
-    image: postgres:16
-    container_name: postgres
-    hostname: postgres
-    environment:
-      POSTGRES_USER: metabase
-      POSTGRES_DB: metabaseappdb
-      POSTGRES_PASSWORD: mysecretpassword
-    volumes:
-      - ./pg_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U metabase -d metabaseappdb"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
+  # metabase:
+  #   image: metabase/metabase:latest
+  #   container_name: metabase
+  #   hostname: metabase
+  #   volumes:
+  #     - /dev/urandom:/dev/random:ro
+  #   ports:
+  #     - 3000:3000
+  #   environment:
+  #     MB_DB_TYPE: postgres
+  #     MB_DB_DBNAME: metabaseappdb
+  #     MB_DB_PORT: 5432
+  #     MB_DB_USER: metabase
+  #     MB_DB_PASS: mysecretpassword
+  #     MB_DB_HOST: postgres
+  #   depends_on:
+  #     postgres-metabase:
+  #       condition: service_healthy
+  #   healthcheck:
+  #     test: curl --fail -I http://localhost:3000/api/health || exit 1
+  #     interval: 15s
+  #     timeout: 5s
+  #     retries: 5
+  # postgres-metabase:
+  #   image: postgres:16
+  #   container_name: postgres
+  #   hostname: postgres
+  #   environment:
+  #     POSTGRES_USER: metabase
+  #     POSTGRES_DB: metabaseappdb
+  #     POSTGRES_PASSWORD: mysecretpassword
+  #   volumes:
+  #     - ./pg_data:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U metabase -d metabaseappdb"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #     start_period: 10s
 
-  pgadmin:
-    image: dpage/pgadmin4
-    ports:
-      - "5050:80"
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@admin.com
-      PGADMIN_DEFAULT_PASSWORD: admin
-    depends_on:
-      postgres-metabase:
-        condition: service_healthy
+  # pgadmin:
+  #   image: dpage/pgadmin4
+  #   ports:
+  #     - "5050:80"
+  #   environment:
+  #     PGADMIN_DEFAULT_EMAIL: admin@admin.com
+  #     PGADMIN_DEFAULT_PASSWORD: admin
+  #   depends_on:
+  #     postgres-metabase:
+  #       condition: service_healthy
 
 #   postgres-airflow:
 #     image: postgres:16

@@ -7,3 +7,4 @@ pg_data
 /spark_streaming/jobs/__pycache__
 /spark_streaming/__pycache__
 /spark_streaming/utils/__pycache__
+/data
