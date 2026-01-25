@@ -1,0 +1,33 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info
+.eggs
+*.egg
+.mypy_cache
+.pytest_cache
+venv
+.venv
+
+# Docker volumes and data
+pg_data
+logs
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Misc
+*.log
+*.tmp
+.env
+.DS_Store

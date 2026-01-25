@@ -1,0 +1,9 @@
+FROM apache/spark:3.5.0
+
+USER root
+
+# Copy and install Python dependencies
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+USER spark

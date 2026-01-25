@@ -24,10 +24,13 @@ EVENT_TYPES = [
     "checkout_start", "purchase", "search", "impression"
 ]
 
-producer = KafkaProducer(
-    bootstrap_servers=['kafka:9093'],
-    value_serializer=lambda v: json.dumps(v).encode('utf-8')
-)
+def create_producer():
+    return KafkaProducer(
+        bootstrap_servers=['kafka:9093'],
+        value_serializer=lambda v: json.dumps(v).encode('utf-8'),
+        retries=5,
+        retry_backoff_ms=1000
+    )
 
 def make_user(user_index=None):
     """Create a synthetic user profile."""
@@ -60,24 +63,26 @@ def get_stream():
     return event
 
 def generate_clickstream(topic_name, num_events, rate):
-    cur_event = 0
-    while cur_event < num_events:
-        event = get_stream()
-        producer.send(topic_name, event)
-        cur_event = cur_event + 1
-        time.sleep(rate)
-    producer.flush()
-    producer.close()
-    return
+    producer = create_producer()
+    try:
+        cur_event = 0
+        while cur_event < num_events:
+            event = get_stream()
+            producer.send(topic_name, event)
+            print(f"Sent event {cur_event + 1}/{num_events}")
+            cur_event = cur_event + 1
+            time.sleep(rate)
+    finally:
+        producer.flush()
+        producer.close()
 
 
 if __name__ == "__main__":
     try:
-        while True:
-            generate_clickstream(
-                topic_name = "ClickStream",
-                num_events=100,
-                rate=10
-            )
+        generate_clickstream(
+            topic_name = "ClickStream",
+            num_events=100,
+            rate=10
+        )
     except KeyboardInterrupt:
         print("Interrupted by user", file=sys.stderr)
