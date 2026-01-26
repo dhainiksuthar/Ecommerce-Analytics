@@ -8,3 +8,5 @@ pg_data
 /spark_streaming/__pycache__
 /spark_streaming/utils/__pycache__
 /data
+/event-generator/new_producer.py
+/spark_streaming/schemas/__pycache__/*

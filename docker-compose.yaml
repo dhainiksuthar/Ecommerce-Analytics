@@ -44,6 +44,28 @@
 #
 # Feel free to modify this file to suit your needs.
 ---
+x-spark-common:
+  &spark-common
+  build:
+    context: .
+    dockerfile: Dockerfile.spark
+  user: root
+  working_dir: /opt/spark/work-dir
+  environment: &spark-common-env
+    - SPARK_MODE=master
+    - SPARK_RPC_AUTHENTICATION_ENABLED=no
+    - SPARK_RPC_ENCRYPTION_ENABLED=no
+    - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+    - SPARK_SSL_ENABLED=no
+    - SPARK_USER=spark
+    - PYTHONPATH=/opt/spark/work-dir
+  volumes:
+    - ./spark_streaming:/opt/spark/work-dir/spark_streaming
+    - ./data:/opt/spark/work-dir/data
+  depends_on:
+    kafka:
+      condition: service_healthy
+
 # x-airflow-common:
 #   &airflow-common
 #   # In order to add custom dependencies or upgrade provider distributions you can use your extended image.
@@ -141,34 +163,41 @@ services:
     depends_on:
       - kafka
 
-  spark:
-    image: docker.io/apache/spark:3.5.0
-    user: root
-    volumes:
-      - ./spark_streaming:/opt/spark/work-dir/spark_streaming
-      - ./data:/opt/spark/work-dir/data
-    working_dir: /opt/spark/work-dir
-    environment:
-      - SPARK_MODE=master
-      - SPARK_RPC_AUTHENTICATION_ENABLED=no
-      - SPARK_RPC_ENCRYPTION_ENABLED=no
-      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
-      - SPARK_SSL_ENABLED=no
-      - SPARK_USER=spark
-      - PYTHONPATH=/opt/spark/work-dir
+  spark-clickstream:
+    <<: *spark-common
     ports:
       - '8082:8080'
       - '4040:4040'
-    depends_on:
-      kafka:
-        condition: service_healthy
     command: >
-      bash -c "pip install psycopg2-binary delta-spark==3.0.0 &&
       /opt/spark/bin/spark-submit
-      --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0,org.postgresql:postgresql:42.7.1,io.delta:delta-spark_2.12:3.0.0,io.delta:delta-storage:3.0.0
+      --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0,io.delta:delta-spark_2.12:3.0.0,io.delta:delta-storage:3.0.0
       --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension
       --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog
-      /opt/spark/work-dir/spark_streaming/jobs/clickstream_to_bronze.py"
+      /opt/spark/work-dir/spark_streaming/jobs/clickstream_to_bronze.py
+
+  spark-orders:
+    <<: *spark-common
+    ports:
+      - '8084:8080'
+      - '4041:4040'
+    command: >
+      /opt/spark/bin/spark-submit
+      --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0,io.delta:delta-spark_2.12:3.0.0,io.delta:delta-storage:3.0.0
+      --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension
+      --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog
+      /opt/spark/work-dir/spark_streaming/jobs/orders_to_bronze.py
+
+  spark-inventory:
+    <<: *spark-common
+    ports:
+      - '8085:8080'
+      - '4042:4040'
+    command: >
+      /opt/spark/bin/spark-submit
+      --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0,io.delta:delta-spark_2.12:3.0.0,io.delta:delta-storage:3.0.0
+      --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension
+      --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog
+      /opt/spark/work-dir/spark_streaming/jobs/inventory_to_bronze.py
 
   # metabase:
   #   image: metabase/metabase:latest
