@@ -1,0 +1,24 @@
+{{
+  config(
+    materialized='table',
+    file_format='delta',
+  )
+}}
+
+SELECT
+  event_id,
+  event_type,
+  user_id,
+  loyalty_tier,
+  page_url,
+  page_title,
+  product_id,
+  product_name,
+  product_category,
+  product_subcategory,
+  product_brand,
+  product_price,
+  order_id,
+  traffic_source
+FROM
+  delta.`/opt/spark/work-dir/data/bronze/clickstream`

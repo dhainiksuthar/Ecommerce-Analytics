@@ -1,0 +1,12 @@
+ecommerce_analytics:
+  target: dev
+  outputs:
+    dev:
+      type: spark
+      method: thrift
+      host: localhost
+      port: 10000
+      user: spark
+      schema: ecommerce_analytics
+      connect_retries: 5
+      connect_timeout: 60

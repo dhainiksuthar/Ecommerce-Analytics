@@ -110,134 +110,190 @@ x-spark-common:
 #       condition: service_healthy
 
 services:
-  event-producer:
-    build: .
-    volumes:
-      - ./event-generator:/app/scripts
-    working_dir: /app/scripts
-    command: python -u producer.py
-    depends_on:
-      kafka:
-        condition: service_healthy
-    environment:
-      - KAFKA_BROKER=kafka:9092
-      - PYTHONUNBUFFERED=1
+#   event-producer:
+#     build: .
+#     volumes:
+#       - ./event-generator:/app/scripts
+#     working_dir: /app/scripts
+#     command: python -u producer.py
+#     depends_on:
+#       kafka:
+#         condition: service_healthy
+#     environment:
+#       - KAFKA_BROKER=kafka:9092
+#       - PYTHONUNBUFFERED=1
 
-  kafka:
-    image: apache/kafka-native
-    ports:
-      - "9092:9092"
-    healthcheck:
-      test: ["CMD-SHELL", "nc -z localhost 9092 || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
-    restart: always
-    environment:
-      # Configure listeners for both docker and host communication
-      KAFKA_LISTENERS: CONTROLLER://localhost:9091,HOST://0.0.0.0:9092,DOCKER://0.0.0.0:9093
-      KAFKA_ADVERTISED_LISTENERS: HOST://localhost:9092,DOCKER://kafka:9093
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,DOCKER:PLAINTEXT,HOST:PLAINTEXT
-
-      # Settings required for KRaft mode
-      KAFKA_NODE_ID: 1
-      KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9091
-
-      # Listener to use for broker-to-broker communication
-      KAFKA_INTER_BROKER_LISTENER_NAME: DOCKER
-
-      # Required for a single node cluster
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-  
-  kafka-ui:
-    image: kafbat/kafka-ui:main
-    ports:
-      - 8083:8080
-    environment:
-      DYNAMIC_CONFIG_ENABLED: "true"
-      KAFKA_CLUSTERS_0_NAME: local
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9093
-    depends_on:
-      - kafka
-
-  spark-clickstream:
-    <<: *spark-common
-    ports:
-      - '8082:8080'
-      - '4040:4040'
-    command: >
-      /opt/spark/bin/spark-submit
-      --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0,io.delta:delta-spark_2.12:3.0.0,io.delta:delta-storage:3.0.0
-      --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension
-      --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog
-      /opt/spark/work-dir/spark_streaming/jobs/clickstream_to_bronze.py
-
-  spark-orders:
-    <<: *spark-common
-    ports:
-      - '8084:8080'
-      - '4041:4040'
-    command: >
-      /opt/spark/bin/spark-submit
-      --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0,io.delta:delta-spark_2.12:3.0.0,io.delta:delta-storage:3.0.0
-      --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension
-      --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog
-      /opt/spark/work-dir/spark_streaming/jobs/orders_to_bronze.py
-
-  spark-inventory:
-    <<: *spark-common
-    ports:
-      - '8085:8080'
-      - '4042:4040'
-    command: >
-      /opt/spark/bin/spark-submit
-      --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0,io.delta:delta-spark_2.12:3.0.0,io.delta:delta-storage:3.0.0
-      --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension
-      --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog
-      /opt/spark/work-dir/spark_streaming/jobs/inventory_to_bronze.py
-
-  # metabase:
-  #   image: metabase/metabase:latest
-  #   container_name: metabase
-  #   hostname: metabase
-  #   volumes:
-  #     - /dev/urandom:/dev/random:ro
+  # kafka:
+  #   image: apache/kafka-native
   #   ports:
-  #     - 3000:3000
-  #   environment:
-  #     MB_DB_TYPE: postgres
-  #     MB_DB_DBNAME: metabaseappdb
-  #     MB_DB_PORT: 5432
-  #     MB_DB_USER: metabase
-  #     MB_DB_PASS: mysecretpassword
-  #     MB_DB_HOST: postgres
-  #   depends_on:
-  #     postgres-metabase:
-  #       condition: service_healthy
+  #     - "9092:9092"
   #   healthcheck:
-  #     test: curl --fail -I http://localhost:3000/api/health || exit 1
-  #     interval: 15s
-  #     timeout: 5s
-  #     retries: 5
-  # postgres-metabase:
-  #   image: postgres:16
-  #   container_name: postgres
-  #   hostname: postgres
-  #   environment:
-  #     POSTGRES_USER: metabase
-  #     POSTGRES_DB: metabaseappdb
-  #     POSTGRES_PASSWORD: mysecretpassword
-  #   volumes:
-  #     - ./pg_data:/var/lib/postgresql/data
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "pg_isready -U metabase -d metabaseappdb"]
+  #     test: ["CMD-SHELL", "nc -z localhost 9092 || exit 1"]
   #     interval: 10s
   #     timeout: 5s
   #     retries: 5
-  #     start_period: 10s
+  #     start_period: 20s
+  #   restart: always
+  #   environment:
+  #     # Configure listeners for both docker and host communication
+  #     KAFKA_LISTENERS: CONTROLLER://localhost:9091,HOST://0.0.0.0:9092,DOCKER://0.0.0.0:9093
+  #     KAFKA_ADVERTISED_LISTENERS: HOST://localhost:9092,DOCKER://kafka:9093
+  #     KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,DOCKER:PLAINTEXT,HOST:PLAINTEXT
+
+  #     # Settings required for KRaft mode
+  #     KAFKA_NODE_ID: 1
+  #     KAFKA_PROCESS_ROLES: broker,controller
+  #     KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+  #     KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9091
+
+  #     # Listener to use for broker-to-broker communication
+  #     KAFKA_INTER_BROKER_LISTENER_NAME: DOCKER
+
+  #     # Required for a single node cluster
+  #     KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+  
+  # kafka-ui:
+  #   image: kafbat/kafka-ui:main
+  #   ports:
+  #     - 8083:8080
+  #   environment:
+  #     DYNAMIC_CONFIG_ENABLED: "true"
+  #     KAFKA_CLUSTERS_0_NAME: local
+  #     KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9093
+  #   depends_on:
+  #     - kafka
+
+  # spark-clickstream:
+  #   <<: *spark-common
+  #   ports:
+  #     - '8082:8080'
+  #     - '4040:4040'
+  #   command: >
+  #     /opt/spark/bin/spark-submit
+  #     --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0,io.delta:delta-spark_2.12:3.0.0,io.delta:delta-storage:3.0.0
+  #     --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension
+  #     --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog
+  #     /opt/spark/work-dir/spark_streaming/jobs/clickstream_to_bronze.py
+
+  # spark-orders:
+  #   <<: *spark-common
+  #   ports:
+  #     - '8084:8080'
+  #     - '4041:4040'
+  #   command: >
+  #     /opt/spark/bin/spark-submit
+  #     --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0,io.delta:delta-spark_2.12:3.0.0,io.delta:delta-storage:3.0.0
+  #     --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension
+  #     --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog
+  #     /opt/spark/work-dir/spark_streaming/jobs/orders_to_bronze.py
+
+  # spark-inventory:
+  #   <<: *spark-common
+  #   ports:
+  #     - '8085:8080'
+  #     - '4042:4040'
+  #   command: >
+  #     /opt/spark/bin/spark-submit
+  #     --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0,io.delta:delta-spark_2.12:3.0.0,io.delta:delta-storage:3.0.0
+  #     --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension
+  #     --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog
+  #     /opt/spark/work-dir/spark_streaming/jobs/inventory_to_bronze.py
+
+  spark-thrift:
+    build:
+      context: .
+      dockerfile: Dockerfile.spark
+    user: root
+    working_dir: /opt/spark/work-dir
+    environment: &spark-common-env
+      - SPARK_MODE=master
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+      - SPARK_USER=spark
+      - PYTHONPATH=/opt/spark/work-dir
+    ports:
+      - '10000:10000'
+      - '4043:4040'
+    volumes:
+      - ./spark_streaming:/opt/spark/work-dir/spark_streaming
+      - ./data:/opt/spark/work-dir/data
+      - ./dbt_project/data:/opt/spark/work-dir/dbt_data
+    command: >
+      /opt/spark/bin/spark-submit
+      --class org.apache.spark.sql.hive.thriftserver.HiveThriftServer2
+      --name "Spark Thrift Server"
+      --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension
+      --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog
+      --conf spark.sql.warehouse.dir=/opt/spark/work-dir/dbt_data
+      --conf spark.hive.server2.thrift.port=10000
+      --conf spark.hive.server2.thrift.bind.host=0.0.0.0
+      --master local[*]
+      spark-internal
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import socket; s=socket.socket(); s.settimeout(5); s.connect(('localhost',10000)); s.close()\""]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  dbt:
+    image: ghcr.io/dbt-labs/dbt-spark:1.9.0
+    volumes:
+      - ./dbt_project:/usr/app/dbt_project
+      - dbt-packages:/usr/app/dbt_project/dbt_packages
+      - dbt-target:/usr/app/dbt_project/target
+      - dbt-logs:/usr/app/dbt_project/logs
+    working_dir: /usr/app/dbt_project
+    environment:
+      - DBT_PROFILES_DIR=/usr/app/dbt_project
+      - SPARK_HOST=spark-thrift
+      - SPARK_PORT=10000
+    depends_on:
+      spark-thrift:
+        condition: service_healthy
+    entrypoint: ["sh", "-c", "while true; do sleep 3600; done"]
+  
+  metabase:
+    image: metabase/metabase:latest
+    container_name: metabase
+    hostname: metabase
+    volumes:
+      - /dev/urandom:/dev/random:ro
+    ports:
+      - 3000:3000
+    environment:
+      MB_DB_TYPE: postgres
+      MB_DB_DBNAME: metabaseappdb
+      MB_DB_PORT: 5432
+      MB_DB_USER: metabase
+      MB_DB_PASS: mysecretpassword
+      MB_DB_HOST: postgres
+    depends_on:
+      postgres-metabase:
+        condition: service_healthy
+    healthcheck:
+      test: curl --fail -I http://localhost:3000/api/health || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 5
+  postgres-metabase:
+    image: postgres:16
+    container_name: postgres
+    hostname: postgres
+    environment:
+      POSTGRES_USER: metabase
+      POSTGRES_DB: metabaseappdb
+      POSTGRES_PASSWORD: mysecretpassword
+    volumes:
+      - ./pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U metabase -d metabaseappdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   # pgadmin:
   #   image: dpage/pgadmin4
@@ -495,5 +551,8 @@ services:
 #       airflow-init:
 #         condition: service_completed_successfully
 
-# volumes:
+volumes:
+  dbt-packages:
+  dbt-target:
+  dbt-logs:
 #   postgres-db-volume:
