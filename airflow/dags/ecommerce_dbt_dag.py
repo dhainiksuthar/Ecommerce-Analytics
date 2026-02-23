@@ -1,6 +1,6 @@
 from airflow import DAG
 from cosmos import ProjectConfig, ProfileConfig
-from cosmos.operators import DbtRunLocalOperator, DbtTestLocalOperator
+from cosmos.operators.local import DbtRunLocalOperator, DbtTestLocalOperator
 from datetime import datetime
 
 with DAG(

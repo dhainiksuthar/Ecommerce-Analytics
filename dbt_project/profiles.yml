@@ -4,7 +4,7 @@ ecommerce_analytics:
     dev:
       type: spark
       method: thrift
-      host: localhost
+      host: spark-thrift
       port: 10000
       user: spark
       schema: ecommerce_analytics
