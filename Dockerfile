@@ -17,4 +17,4 @@ COPY requirements.txt .
 
 # Install the packages (cache pip downloads for faster rebuilds)
 RUN --mount=type=cache,target=/home/airflow/.cache/pip \
-    pip install -r requirements.txt \
+    pip install -r requirements.txt

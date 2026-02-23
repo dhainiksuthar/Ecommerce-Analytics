@@ -4,3 +4,5 @@ pyspark
 requests
 faker
 psycopg2-binary
+astronomer-cosmos
+dbt-spark[PyHive]

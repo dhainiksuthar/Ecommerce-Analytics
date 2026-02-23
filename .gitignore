@@ -1,6 +1,7 @@
 /airflow/logs
 /airflow/plugins
 /airflow/confg
+/airflow/dags/__pycache__
 .claude
 pg_data
 /airflow/config/airflow.cfg
