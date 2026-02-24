@@ -9,6 +9,9 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+# Add airflow user to the docker group (GID 103 matches host docker socket)
+RUN groupadd -f -g 103 docker && usermod -aG docker airflow
+
 # For specific airflow works i have changes to airflow. It is important for security reason
 USER airflow
 

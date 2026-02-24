@@ -44,27 +44,6 @@
 #
 # Feel free to modify this file to suit your needs.
 ---
-x-spark-common:
-  &spark-common
-  build:
-    context: .
-    dockerfile: Dockerfile.spark
-  user: root
-  working_dir: /opt/spark/work-dir
-  environment: &spark-common-env
-    - SPARK_MODE=master
-    - SPARK_RPC_AUTHENTICATION_ENABLED=no
-    - SPARK_RPC_ENCRYPTION_ENABLED=no
-    - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
-    - SPARK_SSL_ENABLED=no
-    - SPARK_USER=spark
-    - PYTHONPATH=/opt/spark/work-dir
-  volumes:
-    - ./spark_streaming:/opt/spark/work-dir/spark_streaming
-    - ./data:/opt/spark/work-dir/data
-  depends_on:
-    kafka:
-      condition: service_healthy
 
 x-airflow-common:
   &airflow-common
@@ -105,7 +84,10 @@ x-airflow-common:
     - ${AIRFLOW_PROJ_DIR:-.}/airflow/plugins:/opt/airflow/plugins
     - airflow-packages:/home/airflow/.local
     - ${AIRFLOW_PROJ_DIR:-.}/dbt_project:/dbt_project
+    - /var/run/docker.sock:/var/run/docker.sock
   user: "${AIRFLOW_UID:-50000}:0"
+  group_add:
+    - "103"
   depends_on:
     &airflow-common-depends-on
     redis:
@@ -114,94 +96,71 @@ x-airflow-common:
       condition: service_healthy
 
 services:
-#   event-producer:
-#     build: .
-#     volumes:
-#       - ./event-generator:/app/scripts
-#     working_dir: /app/scripts
-#     command: python -u producer.py
-#     depends_on:
-#       kafka:
-#         condition: service_healthy
-#     environment:
-#       - KAFKA_BROKER=kafka:9092
-#       - PYTHONUNBUFFERED=1
+  event-producer:
+    build: .
+    volumes:
+      - ./event-generator:/app/scripts
+    working_dir: /app/scripts
+    command: python -u producer.py
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      - KAFKA_BROKER=kafka:9092
+      - PYTHONUNBUFFERED=1
 
-  # kafka:
-  #   image: apache/kafka-native
-  #   ports:
-  #     - "9092:9092"
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "nc -z localhost 9092 || exit 1"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
-  #     start_period: 20s
-  #   restart: always
-  #   environment:
-  #     # Configure listeners for both docker and host communication
-  #     KAFKA_LISTENERS: CONTROLLER://localhost:9091,HOST://0.0.0.0:9092,DOCKER://0.0.0.0:9093
-  #     KAFKA_ADVERTISED_LISTENERS: HOST://localhost:9092,DOCKER://kafka:9093
-  #     KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,DOCKER:PLAINTEXT,HOST:PLAINTEXT
+  kafka:
+    image: apache/kafka-native
+    ports:
+      - "9092:9092"
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 9092 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: always
+    environment:
+      # Configure listeners for both docker and host communication
+      KAFKA_LISTENERS: CONTROLLER://localhost:9091,HOST://0.0.0.0:9092,DOCKER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: HOST://localhost:9092,DOCKER://kafka:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,DOCKER:PLAINTEXT,HOST:PLAINTEXT
 
-  #     # Settings required for KRaft mode
-  #     KAFKA_NODE_ID: 1
-  #     KAFKA_PROCESS_ROLES: broker,controller
-  #     KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-  #     KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9091
+      # Settings required for KRaft mode
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9091
 
-  #     # Listener to use for broker-to-broker communication
-  #     KAFKA_INTER_BROKER_LISTENER_NAME: DOCKER
+      # Listener to use for broker-to-broker communication
+      KAFKA_INTER_BROKER_LISTENER_NAME: DOCKER
 
-  #     # Required for a single node cluster
-  #     KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      # Required for a single node cluster
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
   
-  # kafka-ui:
-  #   image: kafbat/kafka-ui:main
-  #   ports:
-  #     - 8083:8080
-  #   environment:
-  #     DYNAMIC_CONFIG_ENABLED: "true"
-  #     KAFKA_CLUSTERS_0_NAME: local
-  #     KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9093
-  #   depends_on:
-  #     - kafka
+  kafka-ui:
+    image: kafbat/kafka-ui:main
+    ports:
+      - 8083:8080
+    environment:
+      DYNAMIC_CONFIG_ENABLED: "true"
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9093
+    depends_on:
+      - kafka
 
-  # spark-clickstream:
-  #   <<: *spark-common
-  #   ports:
-  #     - '8082:8080'
-  #     - '4040:4040'
-  #   command: >
-  #     /opt/spark/bin/spark-submit
-  #     --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0,io.delta:delta-spark_2.12:3.0.0,io.delta:delta-storage:3.0.0
-  #     --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension
-  #     --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog
-  #     /opt/spark/work-dir/spark_streaming/jobs/clickstream_to_bronze.py
-
-  # spark-orders:
-  #   <<: *spark-common
-  #   ports:
-  #     - '8084:8080'
-  #     - '4041:4040'
-  #   command: >
-  #     /opt/spark/bin/spark-submit
-  #     --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0,io.delta:delta-spark_2.12:3.0.0,io.delta:delta-storage:3.0.0
-  #     --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension
-  #     --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog
-  #     /opt/spark/work-dir/spark_streaming/jobs/orders_to_bronze.py
-
-  # spark-inventory:
-  #   <<: *spark-common
-  #   ports:
-  #     - '8085:8080'
-  #     - '4042:4040'
-  #   command: >
-  #     /opt/spark/bin/spark-submit
-  #     --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0,io.delta:delta-spark_2.12:3.0.0,io.delta:delta-storage:3.0.0
-  #     --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension
-  #     --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog
-  #     /opt/spark/work-dir/spark_streaming/jobs/inventory_to_bronze.py
+  # Spark image definition — not started by docker compose up.
+  # Run "docker compose build spark" to build and tag ecommerce-spark:latest.
+  # DockerOperator in Airflow uses this image to run streaming jobs.
+  spark:
+    build:
+      context: .
+      dockerfile: Dockerfile.spark
+    image: ecommerce-spark:latest
+    volumes:
+      - spark-data:/opt/spark/work-dir/data
+    profiles:
+      - spark-build
 
   spark-thrift:
     build:
@@ -298,17 +257,6 @@ services:
   #     timeout: 5s
   #     retries: 5
   #     start_period: 10s
-
-  # pgadmin:
-  #   image: dpage/pgadmin4
-  #   ports:
-  #     - "5050:80"
-  #   environment:
-  #     PGADMIN_DEFAULT_EMAIL: admin@admin.com
-  #     PGADMIN_DEFAULT_PASSWORD: admin
-  #   depends_on:
-  #     postgres-metabase:
-  #       condition: service_healthy
 
   postgres-airflow:
     image: postgres:16
@@ -558,3 +506,4 @@ volumes:
   dbt-logs:
   postgres-db-volume:
   airflow-packages:
+  spark-data:

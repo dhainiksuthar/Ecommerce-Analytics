@@ -6,3 +6,4 @@ faker
 psycopg2-binary
 astronomer-cosmos
 dbt-spark[PyHive]
+apache-airflow-providers-docker

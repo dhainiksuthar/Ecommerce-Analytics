@@ -3,9 +3,10 @@ FROM apache/spark:3.5.0
 USER root
 
 # Install Python dependencies
-RUN pip install --no-cache-dir delta-spark==3.0.0
+COPY requirements.spark.txt .
+RUN pip install --no-cache-dir -r requirements.spark.txt
 
-# Download Delta JARs directly to Spark's jars directory for Thrift server compatibility
+# Download Delta JARs directly into /opt/spark/jars/ (on classpath for all users)
 RUN curl -L -o /opt/spark/jars/delta-spark_2.12-3.0.0.jar \
     https://repo1.maven.org/maven2/io/delta/delta-spark_2.12/3.0.0/delta-spark_2.12-3.0.0.jar && \
     curl -L -o /opt/spark/jars/delta-storage-3.0.0.jar \
@@ -13,12 +14,22 @@ RUN curl -L -o /opt/spark/jars/delta-spark_2.12-3.0.0.jar \
     curl -L -o /opt/spark/jars/antlr4-runtime-4.9.3.jar \
     https://repo1.maven.org/maven2/org/antlr/antlr4-runtime/4.9.3/antlr4-runtime-4.9.3.jar
 
-# Pre-download Maven/Ivy packages for Kafka support
-RUN /opt/spark/bin/spark-shell --packages \
-    org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0 \
+# Download Kafka JARs (and all transitive deps) via spark-shell as root,
+# then copy them into /opt/spark/jars/ so they are on the classpath for any user
+RUN /opt/spark/bin/spark-shell \
+    --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0 \
     -e "println(\"Packages downloaded successfully\")" && \
-    rm -rf /tmp/spark-*
+    find /root/.ivy2/jars -name "*.jar" -exec cp {} /opt/spark/jars/ \; && \
+    rm -rf /root/.ivy2 /tmp/spark-*
 
 WORKDIR /opt/spark/work-dir
+
+ENV PYTHONPATH=/opt/spark/work-dir
+
+# Pre-create data dir with spark ownership so named volumes initialize with correct permissions
+RUN mkdir -p /opt/spark/work-dir/data && chown -R spark:spark /opt/spark/work-dir/data
+
+# Copy streaming job code into the image — no bind mount needed at runtime
+COPY spark_streaming ./spark_streaming
 
 USER spark

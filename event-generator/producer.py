@@ -1069,7 +1069,6 @@ class EcommerceEventProducer:
         
         print(f"\nStarting event generation at {events_per_second} events/sec")
         print(f"Topics: {CLICKSTREAM_TOPIC}, {ORDERS_TOPIC}, {INVENTORY_TOPIC}")
-        print("-" * 60)
         
         try:
             while True:
@@ -1085,12 +1084,12 @@ class EcommerceEventProducer:
 
                 if event_type == "clickstream":
                     event = self.generate_clickstream_event()
-                    print(f"[CLICK] {event['event_type']:20} | User: {event['user_id'][:8]}... | Session: {event['session_id'][:8]}...")
+                    # print(f"[CLICK] {event['event_type']:20} | User: {event['user_id'][:8]}... | Session: {event['session_id'][:8]}...")
 
                 elif event_type == "order_new":
                     order = self.generate_direct_order()
                     if order:
-                        print(f"[ORDER] new_order              | Order: {order['order_id']} | Total: ${order['total_amount']:.2f}")
+                        # print(f"[ORDER] new_order              | Order: {order['order_id']} | Total: ${order['total_amount']:.2f}")
 
                 elif event_type == "order_update":
                     self.generate_order_update()
